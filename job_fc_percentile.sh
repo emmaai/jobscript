@@ -14,13 +14,18 @@ JOBDIR=$PWD
 PRDDIR=/g/data/r78/FC-percentile
 
 find $PRDDIR -name '*.nc' > tmp
-if [ $(cat tmp | wc -l) == $(cat product_done | wc -l) ]
-then
-    exit
+if [ $(cat tmp | wc -l) != 0 ]
+then 
+    if [ $(cat tmp | wc -l) == $(cat product_done | wc -l) ]
+    then
+        exit
+    fi
+    mv tmp product_done
+    python3 generate_params.py 2017 1986 all-tile-list product_left product_done
+else
+    cp product_full product_left
 fi
 
-mv tmp product_done
-python3 generate_params.py 1987 2018 all-tile-list product_left product_done
 
 NLINES=$(($(cat product_left | wc -l)/$NNODES))
 split -d -l $NLINES product_left params/
@@ -40,6 +45,6 @@ for i in $(seq 0 $(($NNODES-1))); do
     pbsdsh -n $(( $NCPUS*$i )) -- \
     bash -l -c "\
     source $HOME/.bashrc; cd $JOBDIR;\
-    cat params/$PARAMF | parallel --delay 5 --retries 3 --load 100% --joblog $HOME/joblog/log --colsep ' ' datacube-stats-raijin  --year {1} --tile-index {2} {3} fc_percentile_albers_annual.yaml"&
+    cat params/$PARAMF | parallel --delay 5 --retries 3 --load 100% --joblog $HOME/joblog/log$i --colsep ' ' datacube-stats-raijin  --year {1} --tile-index {2} {3} fc_percentile_albers_annual.yaml"&
 done;
 wait
